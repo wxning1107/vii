@@ -1,18 +1,27 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"vii/vii"
 )
 
 func main() {
-	e := vii.NewEngine()
-	e.Get("/", func(w http.ResponseWriter, req *http.Request) {
-		_, err := fmt.Fprintf(w, "URL.Path = %q\n", req.URL.Path)
-		if err != nil {
-			panic(err)
-		}
+	e := vii.New()
+	e.Get("/", func(c *vii.Context) {
+		c.HTML(http.StatusOK, "<h1>Hello Vii</h1>")
+	})
+
+	e.Get("/value", func(c *vii.Context) {
+		log.Print('a')
+		c.String(http.StatusOK, "Hello %s; your url is %s\n", c.Query("name"), c.Path)
+	})
+
+	e.POST("/json", func(c *vii.Context) {
+		c.JSON(http.StatusOK, vii.V{
+			"username": c.PostForm("username"),
+			"email":    c.PostForm("email"),
+		})
 	})
 
 	_ = e.Run(":1107")
