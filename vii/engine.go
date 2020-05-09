@@ -6,24 +6,49 @@ import (
 
 type HandlerFunc func(*Context)
 
+type RouterGroup struct {
+	prefix      string
+	middlewares []HandlerFunc
+	parent      *RouterGroup
+	engine      *Engine
+}
+
 type Engine struct {
+	*RouterGroup
 	router *Router
+	groups []*RouterGroup
 }
 
 func New() *Engine {
-	return &Engine{router: NewRouter()}
+	engine := &Engine{router: NewRouter()}
+	engine.RouterGroup = &RouterGroup{engine: engine}
+	engine.groups = []*RouterGroup{engine.RouterGroup}
+
+	return engine
 }
 
-func (e *Engine) AddRoute(method, pattern string, handler HandlerFunc) {
-	e.router.AddRouterHandler(method, pattern, handler)
+func (g *RouterGroup) Group(prefix string) *RouterGroup {
+	newGroup := &RouterGroup{
+		prefix: g.prefix + prefix,
+		parent: g,
+		engine: g.engine,
+	}
+	g.engine.groups = append(g.engine.groups, newGroup)
+
+	return newGroup
 }
 
-func (e *Engine) Get(pattern string, handler HandlerFunc) {
-	e.AddRoute("GET", pattern, handler)
+func (rg *RouterGroup) AddRoute(method, comp string, handler HandlerFunc) {
+	pattern := rg.prefix + comp
+	rg.engine.router.AddRouterHandler(method, pattern, handler)
 }
 
-func (e *Engine) POST(pattern string, handler HandlerFunc) {
-	e.AddRoute("POST", pattern, handler)
+func (rg *RouterGroup) GET(pattern string, handler HandlerFunc) {
+	rg.AddRoute("GET", pattern, handler)
+}
+
+func (rg *RouterGroup) POST(pattern string, handler HandlerFunc) {
+	rg.AddRoute("POST", pattern, handler)
 }
 
 func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {

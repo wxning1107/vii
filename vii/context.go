@@ -3,18 +3,20 @@ package vii
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 )
 
 type V map[string]interface{}
 
 type Context struct {
-	Writer     http.ResponseWriter
-	Req        *http.Request
+	Writer http.ResponseWriter
+	Req    *http.Request
+
 	StatusCode int
-	Method     string
-	Path       string
+
+	Method string
+	Path   string
+	Params map[string]string
 }
 
 func NewContext(w http.ResponseWriter, req *http.Request) *Context {
@@ -26,6 +28,14 @@ func NewContext(w http.ResponseWriter, req *http.Request) *Context {
 	}
 }
 
+func (c *Context) Param(key string) string {
+	if value, ok := c.Params[key]; ok {
+		return value
+	}
+
+	return ""
+}
+
 func (c *Context) PostForm(key string) string {
 	return c.Req.FormValue(key)
 }
@@ -35,7 +45,7 @@ func (c *Context) Query(key string) string {
 }
 
 func (c *Context) String(code int, format string, values ...interface{}) {
-	log.Printf("Route %4s - %s", c.Method, c.Path)
+	//log.Printf("Route %4s - %s", c.Method, c.Path)
 
 	c.setHeader("Content-Type", "text/plain")
 	c.setStatusCode(code)
@@ -53,8 +63,15 @@ func (c *Context) setStatusCode(code int) {
 	c.Writer.WriteHeader(code)
 }
 
+func (c *Context) Data(code int, data []byte) {
+	c.setStatusCode(code)
+	if _, err := c.Writer.Write(data); err != nil {
+		http.Error(c.Writer, err.Error(), code)
+	}
+}
+
 func (c *Context) HTML(code int, html string) {
-	log.Printf("Route %4s - %s", c.Method, c.Path)
+	//log.Printf("Route %4s - %s", c.Method, c.Path)
 
 	c.setHeader("Content-Type", "text/html")
 	c.setStatusCode(code)
@@ -64,7 +81,7 @@ func (c *Context) HTML(code int, html string) {
 }
 
 func (c *Context) JSON(code int, obj interface{}) {
-	log.Printf("Route %4s - %s", c.Method, c.Path)
+	//log.Printf("Route %4s - %s", c.Method, c.Path)
 
 	c.setHeader("Content-Type", "application/json")
 	c.setStatusCode(code)
