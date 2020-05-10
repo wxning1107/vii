@@ -9,14 +9,19 @@ import (
 type V map[string]interface{}
 
 type Context struct {
+	// origin objects
 	Writer http.ResponseWriter
 	Req    *http.Request
 
 	StatusCode int
-
+	// request info
 	Method string
 	Path   string
 	Params map[string]string
+
+	// middleware
+	handlers []HandlerFunc
+	index    int
 }
 
 func NewContext(w http.ResponseWriter, req *http.Request) *Context {
@@ -25,6 +30,7 @@ func NewContext(w http.ResponseWriter, req *http.Request) *Context {
 		Req:    req,
 		Method: req.Method,
 		Path:   req.URL.Path,
+		index:  -1,
 	}
 }
 
@@ -90,4 +96,17 @@ func (c *Context) JSON(code int, obj interface{}) {
 	if err := encoder.Encode(obj); err != nil {
 		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (c *Context) Next() {
+	c.index++
+	s := len(c.handlers)
+	for ; c.index < s; c.index++ {
+		c.handlers[c.index](c)
+	}
+}
+
+func (c *Context) Fail(code int, err string) {
+	c.index = len(c.handlers)
+	c.JSON(code, V{"message": err})
 }

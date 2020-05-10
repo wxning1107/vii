@@ -2,6 +2,7 @@ package vii
 
 import (
 	"net/http"
+	"strings"
 )
 
 type HandlerFunc func(*Context)
@@ -38,6 +39,10 @@ func (g *RouterGroup) Group(prefix string) *RouterGroup {
 	return newGroup
 }
 
+func (rg *RouterGroup) Use(middlewares ...HandlerFunc) {
+	rg.middlewares = append(rg.middlewares, middlewares...)
+}
+
 func (rg *RouterGroup) AddRoute(method, comp string, handler HandlerFunc) {
 	pattern := rg.prefix + comp
 	rg.engine.router.AddRouterHandler(method, pattern, handler)
@@ -52,7 +57,15 @@ func (rg *RouterGroup) POST(pattern string, handler HandlerFunc) {
 }
 
 func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var middlewares []HandlerFunc
+	for _, group := range e.groups {
+		if strings.HasPrefix(req.URL.Path, group.prefix) {
+			middlewares = append(middlewares, group.middlewares...)
+		}
+	}
+
 	c := NewContext(w, req)
+	c.handlers = middlewares
 	e.router.Handle(c)
 }
 
